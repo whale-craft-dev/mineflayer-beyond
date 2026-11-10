@@ -61,6 +61,9 @@ bot.on('beyond:ready', info => console.log(info))
 | `mineflayer` 版本闸门 | 改 `lib/version.js` 的导出，丢掉 `lib/loader.js` 的模块缓存重新 require，再把新 loader 的能力写回 `index.js` 的导出对象 | `loader.js` 在加载时把 `latestSupportedVersion` 解构成了闭包常量，事后改 `version.js` 没用；而 `index.js` 只是 `module.exports = require('./lib/loader.js')` |
 | `prismarine-chunk` | 替换模块导出：新版本走基线实现（`1.18` 的 chunk 实现完全不读版本号） | 实现表是模块私有的，只能从导出层绕 |
 | `prismarine-physics` | 把新版本名追加到基线版本所在的所有特性列表 | 它的判定是 `versions.includes(majorVersion)`，精确匹配 |
+| `minecraft-protocol` 原生类型 | 26.3 用到的 `entityDelta`（新的分级实体移动编码）在 1.68.0 里还没有，插件的 `lib/native-types/` 在运行时把它注册进 nmp 的 datatypes | 协议 JSON 里写的是 `"entityDelta": "native"`，不补就 `ctx.entityDelta is not a function` |
+
+另外，26.3 的实体移动包把位移包成了 `move: { dX, dY, dZ, onGround, steps }`，而 mineflayer 的 entities 插件读 `packet.dX`。插件在 `client.emit` 前把字段摊平，mineflayer 原样工作。
 
 这也是为什么它必须**锁定依赖版本**（见下）。
 
@@ -94,15 +97,22 @@ prismarine-chunk 1.41.0 · prismarine-physics 1.11.1 · prismarine-registry 1.12
 | MC | 协议号 | 数据基线 | 来源 |
 | --- | --- | --- | --- |
 | 26.2 | 776 | 26.1 | `minecraft-data@pc_26_2` |
+| 26.3 | 777 | 26.1 | `suisarbre/minecraft-data@port-26.3`（PR #1345）+ 运行时补 `entityDelta` |
 
-`26.1` 及更早由上游原生支持，插件不碰。
+`26.1` 及更早由上游原生支持，插件不碰。两个版本都用**真实原版服务端**验证过：登录 → 配置阶段 → spawn → 区块读取。
 
-**26.3 还没加**：上游 `pc_26_3` 分支的协议数据与 26.3 正式版对不上（`login_success` 少了 `sessionId`、`custom_report_details` 少了服务器版本字段、`tags` 结构也变了），实连正式服会卡在配置阶段。数据修正/重新生成是 `mc-data-beyond` 那边的事，验证通过后这里加一行 pack 就能支持。快照版本（如 `26.4-snapshot-7`）同样暂不支持。
+快照版本（如 `26.4-snapshot-7`）暂不支持：协议号是 `1073742xxx`，每两周变一次，没有稳定的数据来源。
+
+## 小版本
+
+26.3.1 这类补丁版本通常沿用 26.3 的协议号。自动探测（`version: false`）按协议号反查，所以服务器是 26.3.1 也会被识别成 26.3 并正常连接；显式传 `version: '26.3.1'` 时，`createBot` 会自动折成 `26.3`。
+
+只有补丁版本**改了协议号**才需要新数据，那种情况加一个 pack 即可。
 
 ## 测试
 
 ```bash
-npm test          # 13 项：版本锁定 / 数据注册 / 假服务器登录（26.2 + 26.1 回归）
+npm test          # 19 项：版本锁定 / 数据注册 / 原生类型 / 小版本 / 假服务器登录（26.2、26.3、26.1 回归）
 npm run selfcheck # 只验补丁和数据，不连服务器
 npm run live-check -- <host> <port> [username] [auth]
 ```
@@ -111,11 +121,12 @@ npm run live-check -- <host> <port> [username] [auth]
 
 ## 边界
 
-- 只解决「版本不被认识 / 没有数据」，不解决「新版本包结构变了导致解析出错」。后者需要针对具体版本写兼容层 —— 26.2 目前没有遇到（`mineflayer` 4.39.0 的 time 插件已经能处理 `clockUpdates`）。
+- 只解决「版本不被认识 / 没有数据」，不解决「新版本包结构变了导致解析出错」。后者需要针对具体版本写兼容层 —— 26.3 的 `entityDelta`、实体移动字段和 `login_success` 就是例子，已经在插件/数据包里处理；26.2 不需要。
 - `install()` 必须在 `createBot` 之前。已经创建过的 bot 不受影响。
 - 依赖锁的是**整棵树的版本**，不是 semver 范围；升级 `mineflayer` 要等本插件跟进。
-- 数据包只覆盖正式版，且静态数据复用 `26.1`（26.2 没有改注册表，上游 `dataPaths.json` 也这么写）。
+- 数据包只覆盖正式版，且静态数据复用 `26.1`（26.2 / 26.3 没有改注册表，上游 `dataPaths.json` 也这么写）。
 
 ## 许可
 
 MIT。协议数据来自 [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data)（MIT），详见 `@whale-craft/mc-data-beyond` 的说明。
+

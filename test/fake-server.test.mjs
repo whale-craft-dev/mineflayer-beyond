@@ -1,4 +1,4 @@
-import test from 'node:test'
+﻿import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import beyond from '../index.js'
@@ -46,7 +46,13 @@ test('26.2：自动探测 → 登录 → spawn → 时间', async () => {
   await connectAndInspect('26.2', 776)
 })
 
+test('26.3：自动探测 → 登录 → spawn → 时间', async () => {
+  beyond.install()
+  await connectAndInspect('26.3', 777)
+})
+
 test('26.1 仍然照常工作（没有被补丁带坏）', async () => {
   beyond.install()
   await connectAndInspect('26.1', 775, { expectReady: false })
 })
+

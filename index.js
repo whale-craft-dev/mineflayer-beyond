@@ -18,6 +18,7 @@ const installModule = require('./lib/install')
 const plugin = require('./lib/plugin')
 const data = require('./lib/data')
 const pins = require('./lib/pins')
+const { normalizeVersion } = require('./lib/version-alias')
 
 function beyond (bot, options) {
   return plugin(bot, options)
@@ -28,13 +29,18 @@ beyond.plugin = plugin
 beyond.createBot = createBot
 beyond.versions = () => data.packs().map(pack => pack.minecraftVersion)
 beyond.supportedMineflayerVersions = pins.mineflayerVersions
+beyond.normalizeVersion = normalizeVersion
 
 function createBot (options = {}) {
   beyond.install()
   const mineflayer = installModule.mineflayer()
   const plugins = { ...(options.plugins || {}) }
   if (!Object.prototype.hasOwnProperty.call(plugins, 'beyond')) plugins.beyond = plugin
-  return mineflayer.createBot({ ...options, plugins })
+  return mineflayer.createBot({
+    ...options,
+    version: normalizeVersion(options.version),
+    plugins
+  })
 }
 
 module.exports = beyond
