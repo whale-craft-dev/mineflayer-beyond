@@ -1,0 +1,43 @@
+﻿{
+  "name": "@whale-craft/mineflayer-beyond",
+  "version": "0.1.0",
+  "description": "不改 mineflayer 源码，在运行时把 minecraft-data 还没收录的 Minecraft 版本接进来；插件锁定它支持的 mineflayer 依赖版本。",
+  "keywords": [
+    "mineflayer",
+    "mineflayer-plugin",
+    "minecraft",
+    "minecraft-data",
+    "protocol",
+    "compatibility"
+  ],
+  "license": "MIT",
+  "author": "whale-craft",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "selfcheck": "node tools/selfcheck.js",
+    "live-check": "node tools/live-check.js",
+    "prepublishOnly": "node tools/check-publishable.js"
+  },
+  "dependencies": {
+    "@whale-craft/mc-data-beyond": "file:../mc-data-beyond"
+  },
+  "peerDependencies": {
+    "mineflayer": "4.39.0"
+  },
+  "devDependencies": {
+    "minecraft-data": "3.119.0",
+    "minecraft-protocol": "1.68.0",
+    "mineflayer": "4.39.0"
+  }
+}
